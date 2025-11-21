@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Public Transport Query System</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/bootstrap.css">
+</head>
+<body>
+<header class="d-flex">
+    <nav class="col-8 d-flex" id="logo">
+        <span class="logo">LOGO</span>
+        <h2>Public Transport Query System</h2>
+    </nav>
+    <nav class="col-4 align-content-end">
+        <button class="btn btn-outline-dark align-content-end" onclick="admin()">Site Management</button>
+        <button class="btn btn-outline-dark align-content-end" id="logout" onclick="logout()">Logout</button>
+    </nav>
+</header>
+<div id="app">
+    <div class="card w-75 mx-auto mt-5 p-3 d-flex gap-3 flex-row">
+        <a href="route.html" class="btn btn-outline-dark">Route Management</a>
+        <a href="bus.html" class="btn btn-outline-dark active">Bus Management</a>
+        <a href="station.html" class="btn btn-outline-dark">Station Management</a>
+        <a href="basic.html" class="btn btn-outline-dark">Form Management</a>
+    </div>
+    <div class="card mt-3 mx-auto w-75 p-2">
+        <h1 class="text-center">
+            Bus Management
+            <button class="btn btn-outline-success" @click="add()">Add Bus</button>
+        </h1>
+        <table class="table">
+            <tr>
+                <th style="width: 25%">Route</th>
+                <th style="width: 25%">Plate</th>
+                <th style="width: 25%">Runtime</th>
+                <th style="width: 25%">Action</th>
+            </tr>
+            <tr v-for="(result,i) in results">
+                <td>{{ result.name }}</td>
+                <td>{{ result.plate }}</td>
+                <td>{{ result.time }}</td>
+                <td>
+                    <button class="btn btn-outline-dark" style="margin-right: 1rem" @click="edit(i)">Edit</button>
+                    <button class="btn btn-outline-danger" @click="del(i)">Delete</button>
+                </td>
+            </tr>
+        </table>
+    </div>
+    <div class="modal fade">
+        <div class="modal-dialog modal-lg">
+            <form @submit.prevent="submit()" class="modal-content">
+                <div class="modal-header">
+                    <h3 class="text-center" v-if="mode === 'add'">Add Bus</h3>
+                    <h3 class="text-center" v-if="mode === 'edit'">Edit Bus - {{ form.plate }}</h3>
+                </div>
+                <div class="modal-body">
+                    <div class="d-flex mb-3 align-items-center" v-if="mode === 'add'">
+                        <label for="plate" class="w-25">Route</label>
+                        <select class="form-control w-75" required v-model="form.route">
+                            <option v-for="option in options" :value="option.id">{{option.name}}
+                            </option>
+                        </select>
+                    </div>
+                    <div class="d-flex mb-3 align-items-center" v-if="mode === 'add'">
+                        <label for="plate" class="w-25">Plate</label>
+                        <input type="text" id="plate" class="w-75 form-control" v-model="form.plate" required>
+                    </div>
+                    <div class="d-flex mb-3 align-items-center">
+                        <label for="time" class="w-25">Runtime (minutes)</label>
+                        <input type="number" min="0" id="time" class="w-75 form-control" v-model="form.time" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-outline-primary">Submit</button>
+                    <button class="btn btn-outline-secondary" type="button" onclick="back()">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+</body>
+</html>
+<script src="js/jquery-3.7.1.js"></script>
+<script src="js/bootstrap.js"></script>
+<script src="js/vue.3.5.24.js"></script>
+<script src="js/app.js"></script>
+<script>
+    const {createApp} = Vue
+    createApp({
+        data() {
+            return {
+                form: {},
+                results: [],
+                mode: "add",
+                options: []
+            }
+        },
+        methods: {
+            getOptions() {
+                $.post("controllers/get.php", {action: "route"}, (res) => {
+                    this.options = JSON.parse(res)
+                })
+            },
+            get(){
+                $.post("controllers/get.php",{action:"bus"},(res)=>{
+                    this.results = JSON.parse(res)
+                })
+            },
+            add(){
+                this.mode = "add"
+                this.getOptions()
+                $("div.modal").modal("show")
+            },
+            edit(i){
+                this.mode = "edit"
+                this.form = this.results[i]
+                this.form.id = this.results[i][0]
+                this.get()
+                $("div.modal").modal("show")
+            },
+            del(i){
+                this.form = this.results[i]
+                this.form.id = this.results[i][0]
+                if (confirm(`Confirm delete ${this.form.plate}?`)){
+                    $.post("controllers/del.php",{id: this.form.id,action: "bus"},(res)=>{
+                        alert("Delete success")
+                        this.get()
+                    })
+                }
+            },
+            submit(){
+                let url = this.mode == "edit" ? "edit.php" : "add.php";
+                $.post("controllers/"+url,{form: this.form,action: "bus"},(res)=>{
+                    alert(res)
+                    back()
+                    this.get()
+                })
+            }
+        },
+        mounted() {
+            this.get()
+        }
+    }).mount("#app")
+</script>

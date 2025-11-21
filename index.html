@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Public Transport Query System</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/bootstrap.css">
+</head>
+<body>
+<header class="d-flex">
+    <nav class="col-8 d-flex" id="logo">
+        <span class="logo">LOGO</span>
+        <h2>Public Transport Query System</h2>
+    </nav>
+    <nav class="col-4 align-content-end">
+        <button class="btn btn-outline-dark align-content-end" onclick="admin()">Site Management</button>
+        <button class="btn btn-outline-dark align-content-end" id="logout" onclick="logout()">Logout</button>
+    </nav>
+</header>
+<div id="app">
+    <select class="form-control w-25 mt-5 mx-auto" required v-model="route" @change="map()">
+        <option v-for="option in options" :value="option.id">{{option.name}}</option>
+    </select>
+    <div class="card mx-auto mt-3" style="width: 768px;padding: 9px">
+        <div id="map"></div>
+    </div>
+    <div class="modal fade">
+        <div class="modal-dialog">
+            <form @submit.prevent="login()" class="modal-content">
+                <div class="modal-header">
+                    <h3>Site Management - Login</h3>
+                </div>
+                <div class="modal-body">
+                    <div class="d-flex mb-3 align-items-center">
+                        <label for="username" class="w-25">Username :</label>
+                        <input type="text" id="username" class="w-75 form-control" v-model="form.username" required>
+                    </div>
+                    <div class="d-flex mb-3 align-items-center">
+                        <label for="password" class="w-25">Passowrd :</label>
+                        <input type="text" id="password" class="w-75 form-control" v-model="form.password" required>
+                    </div>
+                    <div class="d-flex mb-3 align-items-center">
+                        <label for="captcha" class="w-25">Captcha : {{ captcha }}</label>
+                        <input type="text" id="captcha" class="w-75 form-control" v-model="form.captcha" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-outline-primary">Login</button>
+                    <button type="button" class="btn btn-outline-info" @click="veri()">Regenerate captcha</button>
+                    <button class="btn btn-outline-secondary" type="button" onclick="back()">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+</body>
+</html>
+<script src="js/jquery-3.7.1.js"></script>
+<script src="js/bootstrap.js"></script>
+<script src="js/vue.3.5.24.js"></script>
+<script src="js/app.js"></script>
+<script>
+    const {createApp} = Vue
+    createApp({
+        data() {
+            return {
+                form: {
+                    username: "",
+                    password: "",
+                    captcha: ""
+                },
+                stations: [],
+                captcha: "",
+                route: "",
+                row: 0
+            }
+        },
+        methods: {
+            veri() {
+                $.post("controllers/veri.php", (res) => {
+                    this.captcha = res
+                })
+            },
+            getOptions() {
+                $.post("controllers/get.php", {action: "route"}, (res) => {
+                    this.options = JSON.parse(res)
+                    this.route = this.options[0].id
+                    this.map()
+                })
+            },
+            map() {
+                const current = this.options.find(opt => opt.id == this.route)
+                this.row = Number(current.row)
+                let map = ""
+                $("#map").css({"--w": 748 / this.row + "px"})
+                $.post("controllers/get.php", {action: "map", route: this.route}, (res) => {
+                    let stations = JSON.parse(res)
+                    stations.forEach((idx,i) => {
+                        if (i % this.row === 0) map += `<div class="d-flex ${ i % (this.row * 2) === this.row ? 'flex-row-reverse' : ''}">`
+                        map += `
+                           <div class="station">
+                               <div class="${idx.class}">${idx.bus}</div>
+                               <span class="station-point"></span>
+                               <div>${idx.name}</div>
+                               ${(i === this.row - 1 || i % this.row == this.row - 1) && i !== stations.length - 1 ? '<span class="connect-line"></span>' : ''}
+                           </div>
+                           `
+                        if (i % 3 === 2 || i == stations.length - 1) map+=`</div>`
+                    })
+                    $("#map").html(map)
+                })
+            },
+            login() {
+                if (this.form.captcha == this.captcha) {
+                    $.post("controllers/login.php", {form: this.form}, (res) => {
+                        if (res == true) {
+                            alert("Login Success")
+                            location.href = "route.html"
+                        } else {
+                            alert("Username or Password error")
+                        }
+                    })
+                } else {
+                    alert("Captcha error!")
+                }
+            }
+        },
+        mounted() {
+            this.getOptions()
+            this.veri()
+        }
+    }).mount("#app")
+</script>

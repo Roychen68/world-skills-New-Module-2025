@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Public Transport Query System</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/bootstrap.css">
+</head>
+<body>
+<header class="d-flex">
+    <nav class="col-8 d-flex" id="logo">
+        <span class="logo">LOGO</span>
+        <h2>Public Transport Query System</h2>
+    </nav>
+    <nav class="col-4 align-content-end">
+        <button class="btn btn-outline-dark align-content-end" onclick="admin()">Site Management</button>
+        <button class="btn btn-outline-dark align-content-end" id="logout" onclick="logout()">Logout</button>
+    </nav>
+</header>
+<div id="app">
+    <div class="card w-75 mx-auto mt-5 p-3 d-flex gap-3 flex-row">
+        <a href="route.html" class="btn btn-outline-dark active">Route Management</a>
+        <a href="bus.html" class="btn btn-outline-dark">Bus Management</a>
+        <a href="station.html" class="btn btn-outline-dark">Station Management</a>
+        <a href="basic.html" class="btn btn-outline-dark">Form Management</a>
+    </div>
+    <div class="card mt-3 mx-auto w-75 p-2">
+        <h1 class="text-center">
+            Route Management
+            <button class="btn btn-outline-success" @click="add()">Add Route</button>
+        </h1>
+        <table class="table">
+            <tr>
+                <th style="width: 25%">Route Name</th>
+                <th style="width: 25%">Station Count</th>
+                <th style="width: 25%">Stations per Row</th>
+                <th style="width: 25%">Action</th>
+            </tr>
+            <tr v-for="(result,i) in results">
+                <td>{{ result.name }}</td>
+                <td>{{ result.stations }}</td>
+                <td>{{ result.row }}</td>
+                <td>
+                    <button class="btn btn-outline-dark" @click="edit(i)">Edit</button>
+                    <button class="btn btn-outline-danger" @click="del(i)">Delete</button>
+                </td>
+            </tr>
+        </table>
+    </div>
+    <div class="modal fade">
+        <div class="modal-dialog modal-xl">
+            <form @submit.prevent="submit()" class="modal-content">
+                <div class="modal-header">
+                    <h3 class="text-center" v-if="mode === 'add'">Add New Route</h3>
+                    <h3 class="text-center" v-if="mode === 'edit'">Edit Station - {{ form.name }}</h3>
+                </div>
+                <div class="modal-body">
+                    <div class="d-flex mb-3 align-items-center">
+                        <label for="name" class="w-25">Route Name</label>
+                        <input type="text" id="name" class="w-75 form-control" v-model="form.name" required>
+                    </div>
+                    <div class="d-flex mb-3 align-items-center">
+                        <label for="row" class="w-25">Stations per Row</label>
+                        <input type="number" min="2" id="row" class="w-75 form-control" v-model="form.row" required>
+                    </div>
+                    <div class="mb-3" v-for="(station,i) in stations">
+                        <div class="d-flex align-items-center">
+                            <h5 v-if="i === 0" style="width: 10%">Start</h5>
+                            <h5 v-else-if="i === stations.length - 1" style="width: 10%">End</h5>
+                            <h5 v-else style="width: 10%">Middle Station</h5>
+                            <div class="mb-3 p-2" style="width: 25%">
+                                <label>Station Name</label>
+                                <select class="form-control" required v-model="selectedStation[i]">
+                                    <option v-for="option in options" :value="option.id"
+                                            :disabled="selectedStation.includes(option.id)">{{option.name}}
+                                    </option>
+                                </select>
+                            </div>
+                            <div class="mb-3 p-2" style="width: 25%">
+                                <label>Travel Time (minutes)</label>
+                                <input type="number" required min="0" class="form-control" v-model="station.need">
+                            </div>
+                            <div class="mb-3 p-2" style="width: 25%">
+                                <label>Stop Time (minutes)</label>
+                                <input type="number" required min="0" class="form-control" v-model="station.stop">
+                            </div>
+                            <div style="width: 10%">
+                                <button class="btn btn-outline-danger" v-if="i !== stations.length - 1 && i !== 0"
+                                        type="button" @click="stations.splice(i,1)">
+                                    Delete
+                                </button>
+                            </div>
+                        </div>
+                        <button class="btn btn-outline-primary mx-auto position-relative d-block"
+                                v-if="i === stations.length - 2" type="button"
+                                @click="stations.push({name: '', need: 0, stop: 0})">Add Station
+                        </button>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <p class="text-secondary">*The station which don't have travel/stop time (or is 0) will be ignored
+                        after sending to backend*</p>
+                    <button class="btn btn-outline-primary">Submit</button>
+                    <button class="btn btn-outline-secondary" type="button" onclick="back()">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+</body>
+</html>
+<script src="js/jquery-3.7.1.js"></script>
+<script src="js/bootstrap.js"></script>
+<script src="js/vue.3.5.24.js"></script>
+<script src="js/app.js"></script>
+<script>
+    const {createApp} = Vue
+    createApp({
+        data() {
+            return {
+                form: {},
+                mode: "add",
+                results: [],
+                stations: [
+                    {name: "", need: 0, stop: 0},
+                    {name: "", need: 0, stop: 0},
+                ],
+                selectedStation: [],
+                options: []
+            }
+        },
+        methods: {
+            getOptions() {
+                $.post("controllers/get.php", {action: "station"}, (res) => {
+                    this.options = JSON.parse(res)
+                })
+            },
+            get() {
+                $.post("controllers/get.php", {action: "route"}, (res) => {
+                    this.results = JSON.parse(res)
+                })
+            },
+            add() {
+                this.mode = "add"
+                this.getOptions()
+                $("div.modal").modal("show")
+            },
+            edit(i) {
+                this.mode = "edit"
+                this.form = this.results[i]
+                this.get()
+                this.getOptions()
+                $.post("controllers/get.php", {action: "route-station", route: this.results[i].id}, (res) => {
+                    this.stations = JSON.parse(res)
+                    this.selectedStation = this.stations.map((s) => s.station)
+                })
+                $("div.modal").modal("show")
+            },
+            del(i) {
+                this.form = this.results[i]
+                if (confirm(`Confirm delete ${this.form.name}?`)) {
+                    $.post("controllers/del.php", {id: this.form.id, action: "route"}, (res) => {
+                        alert("Delete success")
+                        this.get()
+                    })
+                }
+            },
+            submit() {
+                let url = this.mode == "edit" ? "edit.php" : "add.php";
+                let stations = this.stations.map((s, i) => {
+                    return {
+                        station: this.selectedStation[i],
+                        need: s.need,
+                        stop: s.stop,
+                    }
+                })
+                let layout = stations.filter(s => s.need && s.stop && s.station)
+                if (layout.length < 2) {
+                    alert("Each routes station can't less than 2 stations")
+                    return;
+                }
+                $.post("controllers/" + url, {stations: layout, action: "route", form: this.form}, (res) => {
+                    alert(res)
+                    back()
+                    this.get()
+                })
+            }
+        },
+        mounted() {
+            this.get()
+        }
+    }).mount("#app")
+</script>

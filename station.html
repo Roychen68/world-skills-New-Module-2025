@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Public Transport Query System</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/bootstrap.css">
+</head>
+<body>
+<header class="d-flex">
+    <nav class="col-8 d-flex" id="logo">
+        <span class="logo">LOGO</span>
+        <h2>Public Transport Query System</h2>
+    </nav>
+    <nav class="col-4 align-content-end">
+        <button class="btn btn-outline-dark align-content-end" onclick="admin()">Site Management</button>
+        <button class="btn btn-outline-dark align-content-end" id="logout" onclick="logout()">Logout</button>
+    </nav>
+</header>
+<div id="app">
+    <div class="card w-75 mx-auto mt-5 p-3 d-flex gap-3 flex-row">
+        <a href="route.html" class="btn btn-outline-dark">Route Management</a>
+        <a href="bus.html" class="btn btn-outline-dark">Bus Management</a>
+        <a href="station.html" class="btn btn-outline-dark active">Station Management</a>
+        <a href="basic.html" class="btn btn-outline-dark">Form Management</a>
+    </div>
+    <div class="card mt-3 mx-auto w-75 p-2">
+        <h1 class="text-center">
+            Station Management
+            <button class="btn btn-outline-success" @click="add()">Add Station</button>
+        </h1>
+        <table class="table">
+            <tr>
+                <th style="width: 50%">Station Name</th>
+                <th style="width: 50%">Action</th>
+            </tr>
+            <tr v-for="(result,i) in results">
+                <td>{{ result.name }}</td>
+                <td>
+                    <button class="btn btn-outline-dark" style="margin-right: 1rem" @click="edit(i)">Edit</button>
+                    <button class="btn btn-outline-danger" @click="del(i)">Delete</button>
+                </td>
+            </tr>
+        </table>
+    </div>
+    <div class="modal fade">
+        <div class="modal-dialog modal-lg">
+            <form @submit.prevent="submit()" class="modal-content">
+                <div class="modal-header">
+                    <h3 class="text-center" v-if="mode === 'add'">Add Station</h3>
+                    <h3 class="text-center" v-if="mode === 'edit'">Edit Station - {{ form.name }}</h3>
+                </div>
+                <div class="modal-body">
+                    <div class="d-flex mb-3 align-items-center">
+                        <label for="name" class="w-25">Station Name</label>
+                        <input type="text" id="name" class="w-75 form-control" v-model="form.name" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-outline-primary">Submit</button>
+                    <button class="btn btn-outline-secondary" type="button" onclick="back()">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+</body>
+</html>
+<script src="js/jquery-3.7.1.js"></script>
+<script src="js/bootstrap.js"></script>
+<script src="js/vue.3.5.24.js"></script>
+<script src="js/app.js"></script>
+<script>
+    const {createApp} = Vue
+    createApp({
+        data() {
+            return {
+                form: {},
+                results: [],
+                mode: "add"
+            }
+        },
+        methods: {
+            get(){
+                $.post("controllers/get.php",{action:"station"},(res)=>{
+                    this.results = JSON.parse(res)
+                })
+            },
+            add(){
+                this.mode = "add"
+                $("div.modal").modal("show")
+            },
+            edit(i){
+                this.mode = "edit"
+                this.form = this.results[i]
+                this.get()
+                $("div.modal").modal("show")
+            },
+            del(i){
+                this.form = this.results[i]
+                if (confirm(`Confirm delete ${this.form.name}?`)){
+                    $.post("controllers/del.php",{id: this.form.id,action: "station"},(res)=>{
+                        alert("Delete success")
+                        this.get()
+                    })
+                }
+            },
+            submit(){
+                let url = this.mode == "edit" ? "edit.php" : "add.php";
+                $.post("controllers/"+url,{form: this.form,action: "station"},(res)=>{
+                    alert(res)
+                    back()
+                    this.get()
+                })
+            }
+        },
+        mounted() {
+            this.get()
+        }
+    }).mount("#app")
+</script>
